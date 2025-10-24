@@ -18,9 +18,9 @@ import javax.swing.SwingUtilities;
  *
  * @author Cantarero
  */
-public class Clase_empresa extends JFrame {
+public class EmpresaGUI extends JFrame {
 
-    public Clase_empresa() {
+    public EmpresaGUI() {
         setTitle("Gestión de Empleados - Empresa");
         setSize(800, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -97,7 +97,7 @@ public class Clase_empresa extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new Clase_empresa().setVisible(true);
+            new EmpresaGUI().setVisible(true);
         });
     }
 }
