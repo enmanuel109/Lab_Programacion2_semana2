@@ -11,7 +11,6 @@ import java.util.Date;
 import java.util.List;
 import java.awt.image.BufferedImage;
 import java.awt.Graphics2D;
-import java.lang.reflect.Method;
 
 /**
  *
@@ -151,10 +150,10 @@ public class EmpresaGUI extends JFrame {
             putLabel(form, gbc, row++, new JLabel("Fecha de contratación:"), panelFechaContratacion);
 
             txtSalarioBase = new JTextField(8);
-            lblSalario = new JLabel("Salario base:");
+            lblSalario = new JLabel("Salario base($):");
             putLabel(form, gbc, row++, lblSalario, txtSalarioBase);
 
-            // --- FOTO ---
+            //foto
             lblFoto = new JLabel();
             lblFoto.setPreferredSize(new Dimension(100,100));
             lblFoto.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -440,7 +439,7 @@ public class EmpresaGUI extends JFrame {
         }
     }
 
-    //reportes (ahora con miniaturas)
+    //reportes con fotos
     public class PanelReportes extends JPanel {
         JTable table;
         DefaultTableModel tableModel;
@@ -453,9 +452,9 @@ public class EmpresaGUI extends JFrame {
             tableModel = new DefaultTableModel(cols,0){
                 @Override
                 public Class<?> getColumnClass(int columnIndex) {
-                    if(columnIndex == 0) return ImageIcon.class; // columna foto
-                    if(columnIndex == 4 || columnIndex == 6) return Double.class; // salario, comisión
-                    if(columnIndex == 5) return Double.class; // horas
+                    if(columnIndex == 0) return ImageIcon.class;//foto
+                    if(columnIndex == 4 || columnIndex == 6) return Double.class;//salario, comision
+                    if(columnIndex == 5) return Double.class;//horas
                     return Object.class;
                 }
                 @Override
@@ -475,49 +474,26 @@ public class EmpresaGUI extends JFrame {
             btnActualizar.addActionListener(e -> {
                 tableModel.setRowCount(0);
                 int totStd=0, totTemp=0, totVentas=0;
+
                 for(Empleado emp: empleados){
                     String tipo="Estándar";
                     double comision = 0;
-                    // detectar tipo
                     if(emp instanceof EmpleadoTemporal) tipo="Temporal";
-                    if(emp instanceof EmpleadoVentas) tipo="Ventas";
-
-                    // intentar obtener comisión (primero metodo calcularComision(), luego getComision())
-                    if(emp instanceof EmpleadoVentas){
-                        try {
-                            Method mCalc = emp.getClass().getMethod("calcularComision");
-                            Object res = mCalc.invoke(emp);
-                            if(res instanceof Number) comision = ((Number)res).doubleValue();
-                        } catch (Exception ex) {
-                            // si no existe calcularComision, probar getComision
-                            try {
-                                Method mGet = emp.getClass().getMethod("getComision");
-                                Object res2 = mGet.invoke(emp);
-                                if(res2 instanceof Number) comision = ((Number)res2).doubleValue();
-                            } catch (Exception ex2) {
-                                // si tampoco existe, dejar 0
-                                comision = 0;
-                            }
-                        }
+                    if(emp instanceof EmpleadoVentas) {
+                        tipo="Ventas";
+                        comision = ((EmpleadoVentas)emp).calculoDeComision();
                     }
 
-                    // obtener horas trabajadas (intentar getHorasTrabajadas)
-                    double horas = 0;
-                    try {
-                        Method mHoras = emp.getClass().getMethod("getHorasTrabajadas");
-                        Object rh = mHoras.invoke(emp);
-                        if(rh instanceof Number) horas = ((Number)rh).doubleValue();
-                    } catch (Exception ignored) { /* si no existe, queda 0 */ }
+                    double horas = emp.getHorasTrabajadas();
 
-                    // obtener la foto mediante reflexión (soporta getFotoEmpleado() o getFoto())
-                    ImageIcon fotoIcon = fetchFoto(emp);
-                    ImageIcon thumb = null;
+                    ImageIcon fotoIcon = emp.getFoto();
+                    ImageIcon thumb;
                     if(fotoIcon != null){
                         Image img = fotoIcon.getImage().getScaledInstance(60, 60, Image.SCALE_SMOOTH);
                         thumb = new ImageIcon(img);
                     } else {
-                        // placeholder gris con texto N/A
-                        java.awt.image.BufferedImage bi = new BufferedImage(60,60, BufferedImage.TYPE_INT_RGB);
+                        //placeholder gris con texto N/A
+                        java.awt.image.BufferedImage bi = new java.awt.image.BufferedImage(60,60,BufferedImage.TYPE_INT_RGB);
                         Graphics2D g = bi.createGraphics();
                         g.setColor(Color.LIGHT_GRAY); g.fillRect(0,0,60,60);
                         g.setColor(Color.DARK_GRAY); g.drawString("N/A", 18, 34);
@@ -525,21 +501,12 @@ public class EmpresaGUI extends JFrame {
                         thumb = new ImageIcon(bi);
                     }
 
-                    // calcular pago (usar método existente)
-                    double pago = 0;
-                    try {
-                        Method mPago = emp.getClass().getMethod("calcularPago");
-                        Object rp = mPago.invoke(emp);
-                        if(rp instanceof Number) pago = ((Number)rp).doubleValue();
-                    } catch (Exception ex) {
-                        // fallback a 0 si algo falla
-                        pago = 0;
-                    }
+                    double pago = emp.calcularPago();
 
-                    // agregar fila: Foto, Código, Nombre, Tipo, Salario(pago), Horas, Comisión
+                    //filas: Foto, Código, Nombre, Tipo, Salario, Horas, Comisión
                     tableModel.addRow(new Object[]{ thumb, emp.getCodigo(), emp.getNombre(), tipo, pago, horas, comision });
 
-                    // contadores
+                    //contadores
                     if(tipo.equals("Estándar")) totStd++;
                     if(tipo.equals("Temporal")) totTemp++;
                     if(tipo.equals("Ventas")) totVentas++;
@@ -547,25 +514,8 @@ public class EmpresaGUI extends JFrame {
                 lblTotales.setText("Totales: Std="+totStd+" Temp="+totTemp+" Ventas="+totVentas+" Total="+empleados.size());
             });
         }
-
-        /**
-         * Intenta obtener un ImageIcon desde la instancia de Empleado
-         * Soporta métodos: getFotoEmpleado(), getFoto()
-         */
-        private ImageIcon fetchFoto(Empleado emp){
-            try {
-                Method m1 = emp.getClass().getMethod("getFotoEmpleado");
-                Object res = m1.invoke(emp);
-                if(res instanceof ImageIcon) return (ImageIcon) res;
-            } catch (Exception ignored) {}
-            try {
-                Method m2 = emp.getClass().getMethod("getFoto");
-                Object res2 = m2.invoke(emp);
-                if(res2 instanceof ImageIcon) return (ImageIcon) res2;
-            } catch (Exception ignored) {}
-            return null;
-        }
     }
+
 
 
     //main

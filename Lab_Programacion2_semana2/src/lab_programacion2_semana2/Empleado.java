@@ -12,6 +12,7 @@ import javax.swing.ImageIcon;
  * @author ljmc2
  */
 public class Empleado {
+
     protected String codigo;
     protected String nombre;
     protected Calendar fechaContratacion;
@@ -39,18 +40,21 @@ public class Empleado {
 
     @Override
     public String toString() {
-        return "Código: "+codigo+" | Nombre: "+nombre+" | Fecha: +"+fechaContratacion;
+        return "Código: " + codigo + " | Nombre: " + nombre + " | Fecha: +" + fechaContratacion;
     }
 
     public String getCodigo() {
         return codigo;
     }
+
     public String getNombre() {
         return nombre;
     }
+
     public double getHorasTrabajadas() {
         return horasTrabajadas;
     }
+
     public ImageIcon getFoto() {
         return fotoEmpleado;
     }

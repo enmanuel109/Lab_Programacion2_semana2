@@ -12,23 +12,24 @@ import java.util.Calendar;
  * @author mavasquez
  */
 public class EmpleadoVentas extends Empleado {
+
     private double tasaComision;
     private double ventasMensuales[];
-    
 
     public EmpleadoVentas(String codigo, String nombre, double salario, ImageIcon foto, double tasaComision) {
         super(codigo, nombre, salario, foto);
         this.tasaComision = tasaComision;
-        ventasMensuales = new double [12];
+        ventasMensuales = new double[12];
     }
-    public void registroDeVentas(double monto){
-         int mesActual = Calendar.getInstance().get(Calendar.MONTH);
-         double ventasAntes = ventasMensuales[mesActual];
-         double nuevasVentas = ventasAntes+ monto;
-         ventasMensuales[mesActual] = nuevasVentas;
+
+    public void registroDeVentas(double monto) {
+        int mesActual = Calendar.getInstance().get(Calendar.MONTH);
+        double ventasAntes = ventasMensuales[mesActual];
+        double nuevasVentas = ventasAntes + monto;
+        ventasMensuales[mesActual] = nuevasVentas;
     }
-    
-    public double calculoDeComision(){
+
+    public double calculoDeComision() {
         double comisionMes = 0;
         int mes = Calendar.getInstance().get(Calendar.MONTH);
         double ventas = ventasMensuales[mes];
@@ -37,15 +38,16 @@ public class EmpleadoVentas extends Empleado {
         }
         return comisionMes;
     }
-    
+
+    @Override
     public double calcularPago() {
-    double pagoPorHoras = (horasTrabajadas / 160.0) * salarioBase;
-    double comisionMes = calculoDeComision();
-    double pagoFinal = pagoPorHoras + comisionMes;
-    
-    return pagoFinal;
+        double pagoPorHoras = (horasTrabajadas / 160.0) * salarioBase;
+        double comisionMes = calculoDeComision();
+        double pagoFinal = pagoPorHoras + comisionMes;
+
+        return pagoFinal;
     }
-    
+
     public double totalVentasAnuales() {
         double total = 0;
         for (int i = 0; i < ventasMensuales.length; i++) {
@@ -53,8 +55,9 @@ public class EmpleadoVentas extends Empleado {
         }
         return total;
     }
-    
+
+    @Override
     public String toString() {
-        return super.toString() + "\n Ventas Anuales: $" + totalVentasAnuales();
+        return super.toString() + " |  Ventas Anuales: $" + totalVentasAnuales();
     }
 }

@@ -11,51 +11,43 @@ package lab_programacion2_semana2;
 import java.util.Calendar;
 import javax.swing.ImageIcon;
 
-public class EmpleadoTemporal extends Empleado{
-    
+public class EmpleadoTemporal extends Empleado {
+
     public Calendar fechafin;
-    
-    public EmpleadoTemporal(String codigo, String nombre, double salario, ImageIcon fotoEmpleado, Calendar fechafin){
-        super( codigo, nombre, salario, fotoEmpleado);
-        this.fechafin=Calendar.getInstance();
+
+    public EmpleadoTemporal(String codigo, String nombre, double salario, ImageIcon fotoEmpleado, Calendar fechafin) {
+        super(codigo, nombre, salario, fotoEmpleado);
+        this.fechafin = fechafin;
     }
-    
-    public double pagocond(){
-        Calendar hoy= Calendar.getInstance();
-        boolean hoypost= hoy.after(fechafin);
-        
+
+    @Override
+    public double calcularPago() {
+        Calendar hoy = Calendar.getInstance();
+        boolean hoypost = hoy.after(fechafin);
+
         if (hoypost) {
             return 0.0;
         }
-        return salarioBase * horasTrabajadas;
+        double pago = (horasTrabajadas / 160.0) * salarioBase;
+        return pago;
     }
-    
-    public void actualizarfechafin(Calendar nuevafechafin){
-        this.fechafin=nuevafechafin;
-    }
-    
-    public String formatearFecha(Calendar c) {
-    int año = c.get(Calendar.YEAR);
-    int mes = c.get(Calendar.MONTH) + 1; // +1 porque enero = 0
-    int dia = c.get(Calendar.DAY_OF_MONTH);
 
-    return año + "-" + mes + "-" + dia; 
-}
-    
-    public String infoExtendida() {
-        return "Empleado Temporal"+
-                "Codigo de Empleado: "+codigo+
-                "Nombre de Empleado: "+nombre+
-                "Salario Base: "+salarioBase+
-                "Horas Trabajadas: "+horasTrabajadas+
-                "Fecha de contratacion: "+formatearFecha(fechaContratacion)+
-                "Fecha fin: "+formatearFecha(fechafin);
-                
-                
+    public void actualizarfechafin(Calendar nuevafechafin) {
+        this.fechafin = nuevafechafin;
     }
-    
-    
-    
-    
-    
+
+    public String formatearFecha(Calendar c) {
+        int año = c.get(Calendar.YEAR);
+        int mes = c.get(Calendar.MONTH) + 1; // +1 porque enero = 0
+        int dia = c.get(Calendar.DAY_OF_MONTH);
+
+        return año + "-" + mes + "-" + dia;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString()
+                + " | Fecha fin de contrato: " + formatearFecha(fechafin);
+    }
+
 }
