@@ -9,6 +9,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.lang.reflect.Method;
 
 /**
  *
@@ -151,11 +154,36 @@ public class EmpresaGUI extends JFrame {
             lblSalario = new JLabel("Salario base:");
             putLabel(form, gbc, row++, lblSalario, txtSalarioBase);
 
-            lblFoto = new JLabel("[Sin foto]");
+            // --- FOTO ---
+            lblFoto = new JLabel();
+            lblFoto.setPreferredSize(new Dimension(100,100));
+            lblFoto.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            lblFoto.setHorizontalAlignment(SwingConstants.CENTER);
+            lblFoto.setText("Sin imagen");
+
             btnSeleccionarFoto = new JButton("Seleccionar imagen");
+
             JPanel fotoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,4,0));
-            fotoPanel.add(lblFoto); fotoPanel.add(btnSeleccionarFoto);
+            fotoPanel.add(lblFoto);
+            fotoPanel.add(btnSeleccionarFoto);
             putLabel(form, gbc, row++, new JLabel("Foto:"), fotoPanel);
+
+            btnSeleccionarFoto.addActionListener(e -> {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setDialogTitle("Seleccionar foto de empleado");
+                chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                        "Imágenes (*.jpg, *.png, *.jpeg)", "jpg", "png", "jpeg"));
+                int result = chooser.showOpenDialog(this);
+                if(result == JFileChooser.APPROVE_OPTION){
+                    java.io.File file = chooser.getSelectedFile();
+                    ImageIcon original = new ImageIcon(file.getAbsolutePath());
+                    Image img = original.getImage().getScaledInstance(100,100,Image.SCALE_SMOOTH);
+                    ImageIcon scaled = new ImageIcon(img);
+                    lblFoto.setIcon(scaled);
+                    lblFoto.setText("");
+                    lblFoto.putClientProperty("fotoSeleccionada", original);
+                }
+            });
 
             cbTipoEmpleado = new JComboBox<>(new String[]{"Estándar","Temporal","Ventas"});
             lblTipo = new JLabel("Tipo de empleado:");
@@ -195,7 +223,7 @@ public class EmpresaGUI extends JFrame {
                 try { salario = Double.parseDouble(txtSalarioBase.getText()); }
                 catch(Exception ex) { JOptionPane.showMessageDialog(this,"Salario inválido"); return; }
 
-                ImageIcon foto = null;
+                ImageIcon foto = (ImageIcon) lblFoto.getClientProperty("fotoSeleccionada");
                 String tipo = (String) cbTipoEmpleado.getSelectedItem();
                 Empleado emp = null;
 
@@ -224,6 +252,8 @@ public class EmpresaGUI extends JFrame {
             btnLimpiar.addActionListener(e -> {
                 txtCodigo.setText(""); txtNombre.setText(""); txtSalarioBase.setText("");
                 txtComision.setText("5"); dcFechaFin.setDate(null);
+                lblFoto.setIcon(null); lblFoto.setText("Sin imagen");
+                lblFoto.putClientProperty("fotoSeleccionada", null);
             });
         }
 
@@ -244,7 +274,7 @@ public class EmpresaGUI extends JFrame {
     //registrar horas 
     public class PanelRegistrarHoras extends JPanel {
         JTextField txtCodigo, txtHoras;
-        JButton btnRegistrarHoras, btnLimpiar, btnVolver;
+        JButton btnRegistrarHoras, btnLimpiar;
 
         public PanelRegistrarHoras(){
             setLayout(new BorderLayout(6,6));
@@ -367,8 +397,10 @@ public class EmpresaGUI extends JFrame {
                 Empleado emp = null;
                 for(Empleado e1: empleados){ if(e1.getCodigo().equals(codigo)){ emp=e1; break; } }
                 if(emp==null){ JOptionPane.showMessageDialog(this,"Empleado no encontrado"); return; }
-                if(emp instanceof EmpleadoTemporal){ ((EmpleadoTemporal)emp).actualizarfechafin(cal); JOptionPane.showMessageDialog(this,"Fecha actualizada"); }
-                else { JOptionPane.showMessageDialog(this,"Empleado no es temporal"); }
+                if(emp instanceof EmpleadoTemporal empleadoTemporal){
+                    empleadoTemporal.actualizarfechafin(cal);
+                    JOptionPane.showMessageDialog(this,"Fecha actualizada correctamente");
+                } else { JOptionPane.showMessageDialog(this,"Empleado no es temporal"); }
             });
         }
     }
@@ -408,7 +440,7 @@ public class EmpresaGUI extends JFrame {
         }
     }
 
-    //reportes------------------
+    //reportes (ahora con miniaturas)
     public class PanelReportes extends JPanel {
         JTable table;
         DefaultTableModel tableModel;
@@ -417,9 +449,20 @@ public class EmpresaGUI extends JFrame {
 
         PanelReportes(){
             setLayout(new BorderLayout(6,6));
-            String[] cols = {"Código","Nombre","Tipo","Salario","Horas","Comisión"};
-            tableModel = new DefaultTableModel(cols,0);
+            String[] cols = {"Foto","Código","Nombre","Tipo","Salario","Horas","Comisión"};
+            tableModel = new DefaultTableModel(cols,0){
+                @Override
+                public Class<?> getColumnClass(int columnIndex) {
+                    if(columnIndex == 0) return ImageIcon.class; // columna foto
+                    if(columnIndex == 4 || columnIndex == 6) return Double.class; // salario, comisión
+                    if(columnIndex == 5) return Double.class; // horas
+                    return Object.class;
+                }
+                @Override
+                public boolean isCellEditable(int row, int column) { return false; }
+            };
             table = new JTable(tableModel);
+            table.setRowHeight(64);
             add(new JScrollPane(table),BorderLayout.CENTER);
 
             JPanel lateral = new JPanel(); lateral.setLayout(new BoxLayout(lateral,BoxLayout.Y_AXIS));
@@ -433,18 +476,100 @@ public class EmpresaGUI extends JFrame {
                 tableModel.setRowCount(0);
                 int totStd=0, totTemp=0, totVentas=0;
                 for(Empleado emp: empleados){
-                    String tipo="Estándar"; double comision=0;
+                    String tipo="Estándar";
+                    double comision = 0;
+                    // detectar tipo
                     if(emp instanceof EmpleadoTemporal) tipo="Temporal";
-                    if(emp instanceof EmpleadoVentas){ tipo="Ventas"; comision=((EmpleadoVentas)emp).calculoDeComision(); }
-                    tableModel.addRow(new Object[]{emp.getCodigo(),emp.getNombre(),tipo,emp.calcularPago(),emp.getHorasTrabajadas(),comision});
-                    if(tipo.equals("Estándar")) totStd++; if(tipo.equals("Temporal")) totTemp++; if(tipo.equals("Ventas")) totVentas++;
+                    if(emp instanceof EmpleadoVentas) tipo="Ventas";
+
+                    // intentar obtener comisión (primero metodo calcularComision(), luego getComision())
+                    if(emp instanceof EmpleadoVentas){
+                        try {
+                            Method mCalc = emp.getClass().getMethod("calcularComision");
+                            Object res = mCalc.invoke(emp);
+                            if(res instanceof Number) comision = ((Number)res).doubleValue();
+                        } catch (Exception ex) {
+                            // si no existe calcularComision, probar getComision
+                            try {
+                                Method mGet = emp.getClass().getMethod("getComision");
+                                Object res2 = mGet.invoke(emp);
+                                if(res2 instanceof Number) comision = ((Number)res2).doubleValue();
+                            } catch (Exception ex2) {
+                                // si tampoco existe, dejar 0
+                                comision = 0;
+                            }
+                        }
+                    }
+
+                    // obtener horas trabajadas (intentar getHorasTrabajadas)
+                    double horas = 0;
+                    try {
+                        Method mHoras = emp.getClass().getMethod("getHorasTrabajadas");
+                        Object rh = mHoras.invoke(emp);
+                        if(rh instanceof Number) horas = ((Number)rh).doubleValue();
+                    } catch (Exception ignored) { /* si no existe, queda 0 */ }
+
+                    // obtener la foto mediante reflexión (soporta getFotoEmpleado() o getFoto())
+                    ImageIcon fotoIcon = fetchFoto(emp);
+                    ImageIcon thumb = null;
+                    if(fotoIcon != null){
+                        Image img = fotoIcon.getImage().getScaledInstance(60, 60, Image.SCALE_SMOOTH);
+                        thumb = new ImageIcon(img);
+                    } else {
+                        // placeholder gris con texto N/A
+                        java.awt.image.BufferedImage bi = new BufferedImage(60,60, BufferedImage.TYPE_INT_RGB);
+                        Graphics2D g = bi.createGraphics();
+                        g.setColor(Color.LIGHT_GRAY); g.fillRect(0,0,60,60);
+                        g.setColor(Color.DARK_GRAY); g.drawString("N/A", 18, 34);
+                        g.dispose();
+                        thumb = new ImageIcon(bi);
+                    }
+
+                    // calcular pago (usar método existente)
+                    double pago = 0;
+                    try {
+                        Method mPago = emp.getClass().getMethod("calcularPago");
+                        Object rp = mPago.invoke(emp);
+                        if(rp instanceof Number) pago = ((Number)rp).doubleValue();
+                    } catch (Exception ex) {
+                        // fallback a 0 si algo falla
+                        pago = 0;
+                    }
+
+                    // agregar fila: Foto, Código, Nombre, Tipo, Salario(pago), Horas, Comisión
+                    tableModel.addRow(new Object[]{ thumb, emp.getCodigo(), emp.getNombre(), tipo, pago, horas, comision });
+
+                    // contadores
+                    if(tipo.equals("Estándar")) totStd++;
+                    if(tipo.equals("Temporal")) totTemp++;
+                    if(tipo.equals("Ventas")) totVentas++;
                 }
                 lblTotales.setText("Totales: Std="+totStd+" Temp="+totTemp+" Ventas="+totVentas+" Total="+empleados.size());
             });
         }
+
+        /**
+         * Intenta obtener un ImageIcon desde la instancia de Empleado
+         * Soporta métodos: getFotoEmpleado(), getFoto()
+         */
+        private ImageIcon fetchFoto(Empleado emp){
+            try {
+                Method m1 = emp.getClass().getMethod("getFotoEmpleado");
+                Object res = m1.invoke(emp);
+                if(res instanceof ImageIcon) return (ImageIcon) res;
+            } catch (Exception ignored) {}
+            try {
+                Method m2 = emp.getClass().getMethod("getFoto");
+                Object res2 = m2.invoke(emp);
+                if(res2 instanceof ImageIcon) return (ImageIcon) res2;
+            } catch (Exception ignored) {}
+            return null;
+        }
     }
-    
+
+
+    //main
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> { EmpresaGUI app = new EmpresaGUI(); app.setVisible(true); });
+        SwingUtilities.invokeLater(() -> new EmpresaGUI().setVisible(true));
     }
 }
