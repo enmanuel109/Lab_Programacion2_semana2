@@ -16,7 +16,7 @@ public class EmpleadoVentas extends Empleado {
     private double ventasMensuales[];
     
 
-    public EmpleadoVentas(String codigo, String nombre, double salario, ImageIcon foto) {
+    public EmpleadoVentas(String codigo, String nombre, double salario, ImageIcon foto, double tasaComision) {
         super(codigo, nombre, salario, foto);
         this.tasaComision = tasaComision;
         ventasMensuales = new double [12];
@@ -33,7 +33,7 @@ public class EmpleadoVentas extends Empleado {
         int mes = Calendar.getInstance().get(Calendar.MONTH);
         double ventas = ventasMensuales[mes];
         if (ventas != 0) {
-            comisionMes = tasaComision * ventas;
+            comisionMes = ventas * (tasaComision / 100);
         }
         return comisionMes;
     }
@@ -44,5 +44,17 @@ public class EmpleadoVentas extends Empleado {
     double pagoFinal = pagoPorHoras + comisionMes;
     
     return pagoFinal;
+    }
+    
+    public double totalVentasAnuales() {
+        double total = 0;
+        for (int i = 0; i < ventasMensuales.length; i++) {
+            total = total + ventasMensuales[i];
+        }
+        return total;
+    }
+    
+    public String toString() {
+        return super.toString() + "\n Ventas Anuales: $" + totalVentasAnuales();
     }
 }
